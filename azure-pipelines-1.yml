@@ -1,0 +1,45 @@
+# Docker
+# Build a Docker image
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+trigger:
+- Suraj_Dev
+resources:
+- repo: self
+variables:
+  AWS_ACCOUNT_ID: '664418992117' # Replace with your AWS Account ID
+  AWS_REGION: 'us-west-2' # Replace with your preferred AWS region
+  ECR_REPOSITORY_NAME: 'bedrock-access-gateway-ecr' # Replace with your ECR repository name
+  IMAGE_TAG: '$(Build.BuildId)' # Use a unique build ID as the tag
+stages:
+- stage: BuildAndPushToECR
+  displayName: Build and Push Docker Image to AWS ECR
+  jobs:
+  - job: BuildAndPush
+    displayName: Build and Push Docker Image
+    steps:
+    # Step 2: Install AWS CLI
+    - script: |
+        echo "Installing AWS CLI..."
+        sudo apt-get update && sudo apt-get install -y awscli
+        aws --version
+      displayName: Install AWS CLI
+    # Step 3: Authenticate with AWS ECR
+    - script: |
+        echo "Authenticating with AWS ECR..."
+        aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+      displayName: Authenticate with AWS ECR
+    # Step 4: Build Docker Image
+    - script: |
+        echo "Building Docker image..."
+        docker build -t $(ECR_REPOSITORY_NAME):$(IMAGE_TAG) .
+      displayName: Build Docker Image
+    # Step 5: Tag Docker Image
+    - script: |
+        echo "Tagging Docker image..."
+        docker tag $(ECR_REPOSITORY_NAME):$(IMAGE_TAG) $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(ECR_REPOSITORY_NAME):$(IMAGE_TAG)
+      displayName: Tag Docker Image
+    # Step 6: Push Docker Image to AWS ECR
+    - script: |
+        echo "Pushing Docker image to AWS ECR..."
+        docker push $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(ECR_REPOSITORY_NAME):$(IMAGE_TAG)
+      displayName: Push Docker Image
